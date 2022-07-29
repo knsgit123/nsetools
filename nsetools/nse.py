@@ -23,15 +23,14 @@
 
 """
 import six
-import ast
 import re
 import json
 import zipfile
 import io
-from dateutil import parser
 from nsetools.bases import AbstractBaseExchange
 from nsetools.utils import byte_adaptor
-from nsetools.utils import js_adaptor
+from nsetools.datemgr import mkdate
+
 # import paths differ in python 2 and python 3
 if six.PY2:
     from urllib2 import build_opener, HTTPCookieProcessor, Request
@@ -42,8 +41,6 @@ elif six.PY3:
     from urllib.parse import urlencode
     from http.cookiejar import CookieJar
 
-from nsetools.utils import byte_adaptor, js_adaptor
-from nsetools.datemgr import mkdate
 
 class Nse(AbstractBaseExchange):
     """
@@ -76,6 +73,10 @@ class Nse(AbstractBaseExchange):
         self.preopen_niftybank_url =\
             "https://www1.nseindia.com/live_market/dynaContent/live_analysis/pre_open/niftybank.json"
         self.fno_lot_size_url = "https://www1.nseindia.com/content/fo/fo_mktlots.csv"
+        self.bhavcopyPR_base_url = "https://www1.nseindia.com/archives/equities/bhavcopy/pr/PR%s%s%s.zip"
+        self.corp_act_base_filename = "Bc%s%s%s.csv"
+        self.daily_volatility_files = "https://www1.nseindia.com/archives/nsccl/volt/FOVOLT_%s%s%s.csv"
+        self.daily_volatility_filename = "FOVOLT_%s%s%s.csv"
 
     def get_fno_lot_sizes(self, cached=True, as_json=False):
         """
@@ -356,8 +357,15 @@ class Nse(AbstractBaseExchange):
         return {'Accept': '*/*',
                 'Accept-Language': 'en-US,en;q=0.5',
                 'Host': 'www1.nseindia.com',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:28.0) Gecko/20100101 Firefox/28.0',
-                'X-Requested-With': 'XMLHttpRequest'
+                'Connection': 'keep-alive',
+                'Referer': "https://www1.nseindia.com/products/content/equities/equities/archieve_eq.htm",
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:102.0) Gecko/20100101 Firefox/102.0',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Sec - Fetch - Dest': 'document',
+                'Sec - Fetch - Mode': 'navigate',
+                'Sec - Fetch - Site': 'same - origin',
+                'Sec - Fetch - User': '?1',
+                'Sec - GPC': '1'
                 }
 
     def nse_opener(self):
@@ -431,6 +439,31 @@ class Nse(AbstractBaseExchange):
         filename = self.bhavcopy_base_filename % (day_of_month, mon, year)
         return filename
 
+    def get_bhavcopyPR_url(self, d):
+        """Take date and return bhavcopyPR zip url. Starts from 4th January 2010."""
+        d = mkdate(d)
+        day_of_month = d.strftime("%d")
+        mon = d.strftime("%m")
+        year = d.strftime("%y")
+        url = self.bhavcopyPR_base_url % (day_of_month, mon, year)
+        return url
+
+    def get_corp_act_filename(self, d):
+        d = mkdate(d)
+        day_of_month = d.strftime("%d")
+        mon = d.strftime("%m")
+        year = d.strftime("%y")
+        filename = self.corp_act_base_filename % (day_of_month, mon, year)
+        return filename
+
+    def get_daily_volatility_file_url(self, d):
+        d = mkdate(d)
+        day_of_month = d.strftime("%d")
+        mon = d.strftime("%m")
+        year = d.year
+        url = self.daily_volatility_files % (day_of_month, mon, year)
+        return url
+
     def download_bhavcopy(self, d):
         """returns bhavcopy as csv file."""
         # ex_url = "https://www.nseindia.com/content/historical/EQUITIES/2011/NOV/cm08NOV2011bhav.csv.zip"
@@ -444,7 +477,27 @@ class Nse(AbstractBaseExchange):
             result = zf.read(filename)
         except KeyError:
             result = zf.read(zf.filelist[0].filename)
-        return zf.read(filename).decode("utf-8")
+        return result.decode("utf-8")
+
+    def download_corp_act(self, d):
+        """returns Corporate Actions file as csv file."""
+        # ex_url = "https://www.nseindia.com/archives/equities/bhavcopy/pr/PR230819.zip"
+        url = self.get_bhavcopyPR_url(d)
+        filename = self.get_corp_act_filename(d)
+        # response = requests.get(url, headers=self.headers)
+        response = self.opener.open(Request(url, None, self.headers))
+        zip_file_handle = io.BytesIO(response.read())
+        zf = zipfile.ZipFile(zip_file_handle)
+        try:
+            result = zf.read(filename)
+        except KeyError:
+            result = zf.read(zf.filelist[0].filename)
+        return result.decode('utf-8')
+
+    def download_daily_volatility_file(self, d):
+        url = self.get_daily_volatility_file_url(d)
+        response = self.opener.open(Request(url, None, self.headers)).read()
+        return response.decode('utf-8')
 
     def download_index_copy(self, d):
         """returns index copy file"""

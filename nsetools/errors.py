@@ -3,6 +3,7 @@ class BhavcopyNotAvailableError(Exception):
     when the market was close"""
     pass
 
+
 class DateFormatError(Exception):
     """in case the date format is errorneous"""
     pass

@@ -27,12 +27,14 @@ import os
 import zipfile
 import datetime as dt
 from urllib.request import Request
-from nsetools.datemgr import mkdate, usable_date, get_date_range
+from nsetools.datemgr import mkdate, get_date_range
 from nsetools import Nse
 from abc import ABCMeta, abstractmethod
 
+
 class BaseBhavcopyDownloader(metaclass=ABCMeta):
     """Base class for all types of bhavcopy downloader"""
+
     def __init__(self, from_date, to_date=dt.datetime.now().date(), skip_dates=[]):
         """accepts date in fuzzy format"""
         self.bhavcopy_base_url = "https://www.nseindia.com/content/historical/EQUITIES/%s/%s/cm%s%s%sbhav.csv.zip"
@@ -45,7 +47,7 @@ class BaseBhavcopyDownloader(metaclass=ABCMeta):
 
     def generate_dates(self):
         return get_date_range(self.from_date, self.to_date, skip_dates=self.skip_dates)
-    
+
     def get_bhavcopy_url(self, d):
         """accept date and return bhavcopy url"""
         day_of_month = d.strftime("%d")
@@ -78,11 +80,11 @@ class BaseBhavcopyDownloader(metaclass=ABCMeta):
 
     @abstractmethod
     def download(self):
-        pass 
-    
+        pass
+
     @abstractmethod
     def update(self):
-        pass 
+        pass
 
 
 class BhavcopyFileSystemDownloader(BaseBhavcopyDownloader):
@@ -99,14 +101,14 @@ class BhavcopyFileSystemDownloader(BaseBhavcopyDownloader):
             try:
                 content = self.download_one(date)
             except Exception as err:
-                print("unable to download for the date: %s" %  date.strftime("%Y-%m-%d"))
+                print("unable to download for the date: %s" % date.strftime("%Y-%m-%d"))
             else:
                 fh = open(self.directory + "/" + date.strftime("%Y-%m-%d") + ".csv", "w")
                 fh.write(content)
                 fh.close()
-    
+
     def update(self):
-        pass 
+        pass
 
 
 if __name__ == '__main__':

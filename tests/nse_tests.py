@@ -6,6 +6,7 @@ import logging
 import json
 import re
 import six
+from urllib.request import OpenerDirector
 from nsetools.bases import AbstractBaseExchange
 from nsetools import Nse
 from nsetools.utils import js_adaptor, byte_adaptor
@@ -34,6 +35,7 @@ class TestCoreAPIs(unittest.TestCase):
     def test_nse_opener(self):
         ''' should not raise any exception '''
         opener = self.nse.nse_opener()
+        self.assertIsInstance(opener, OpenerDirector)
 
     def test_build_url_for_quote(self):
         test_code = 'infy'
@@ -209,7 +211,11 @@ class TestCoreAPIs(unittest.TestCase):
 
     def test_6th_Dec_1994(self):
         data = self.nse.download_bhavcopy('1994-12-06')
-        self.assertIsInstance(self, data, bytes)
+        self.assertIsInstance(data, str)
+
+    def test_4th_Jan_2010(self):
+        data = self.nse.download_corp_act('2010-01-04')
+        self.assertIsInstance(data, str)
 
     def test_top_fno_gainers_losers(self):
         fno_gainer = self.nse.get_top_fno_gainers()
